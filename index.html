@@ -1,0 +1,160 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Set Tracker</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, system-ui, sans-serif;
+    background: #111;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+    user-select: none;
+  }
+
+  /* Timer */
+  #timer {
+    font-size: 24vw;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    transition: color .2s;
+  }
+  #timer.resting { color: #4ade80; }
+  #timer.done { color: #888; }
+
+  #status { font-size: 16px; color: #888; height: 20px; }
+
+  /* Set buttons */
+  #sets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    justify-items: center;
+    gap: 18px;
+    width: 100%;
+    max-width: 360px;
+  }
+  .set {
+    border: none;
+    border-radius: 50%;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    max-width: 140px;
+    background: #262626;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #000, 0 8px 12px rgba(0,0,0,.5);
+    transition: transform .05s, background .2s, box-shadow .05s;
+  }
+  .set:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #000, 0 3px 6px rgba(0,0,0,.5);
+  }
+  .set.done {
+    background: #16803c;
+    color: #dcfce7;
+    box-shadow: 0 6px 0 #0b4a22, 0 8px 12px rgba(0,0,0,.5);
+  }
+
+  #reset {
+    border: none;
+    border-radius: 16px;
+    background: transparent;
+    color: #888;
+    border: 2px solid #333;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 16px 0;
+    width: 100%;
+    max-width: 420px;
+    cursor: pointer;
+  }
+  #reset:active { background: #1a1a1a; }
+</style>
+
+<div style="text-align:center">
+  <div id="timer">3:00</div>
+  <div id="status"></div>
+</div>
+
+<div id="sets"></div>
+
+<button id="reset">Reset</button>
+
+<script>
+  const REST_SECONDS = 180;
+
+  const timerEl  = document.getElementById("timer");
+  const statusEl = document.getElementById("status");
+  const setsEl   = document.getElementById("sets");
+  const resetBtn = document.getElementById("reset");
+
+  let intervalId = null;
+
+  // Build the 4 set buttons
+  const buttons = [];
+  for (let i = 1; i <= 4; i++) {
+    const btn = document.createElement("button");
+    btn.className = "set";
+    btn.textContent = "Set " + i;
+    btn.addEventListener("click", () => completeSet(btn));
+    buttons.push(btn);
+    setsEl.appendChild(btn);
+  }
+
+  function format(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m + ":" + String(s).padStart(2, "0");
+  }
+
+  function completeSet(btn) {
+    btn.classList.add("done");     // mark this set finished
+    startRest();
+  }
+
+  function startRest() {
+    if (intervalId) clearInterval(intervalId);
+
+    let remaining = REST_SECONDS;
+    timerEl.className = "resting";
+    statusEl.textContent = "Resting...";
+    timerEl.textContent = format(remaining);
+
+    intervalId = setInterval(() => {
+      remaining--;
+      timerEl.textContent = format(remaining);
+      if (remaining <= 0) {
+        clearInterval(intervalId);
+        intervalId = null;
+        finishRest();
+      }
+    }, 1000);
+  }
+
+  function finishRest() {
+    timerEl.textContent = "0:00";
+    timerEl.className = "done";
+    statusEl.textContent = "";
+    if (navigator.vibrate) navigator.vibrate([400, 150, 400]);
+  }
+
+  function reset() {
+    if (intervalId) clearInterval(intervalId);
+    intervalId = null;
+    buttons.forEach(b => b.classList.remove("done"));
+    timerEl.className = "";
+    timerEl.textContent = format(REST_SECONDS);
+    statusEl.textContent = "";
+  }
+
+  resetBtn.addEventListener("click", reset);
+</script>
