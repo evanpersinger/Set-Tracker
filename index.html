@@ -98,6 +98,7 @@
   const resetBtn = document.getElementById("reset");
 
   let intervalId = null;
+  let endTime = null;
   let audioCtx = null;
 
   // Must be called from inside a tap so iOS lets us make sound later
@@ -150,23 +151,29 @@
   function startRest() {
     if (intervalId) clearInterval(intervalId);
 
-    let remaining = REST_SECONDS;
+    endTime = Date.now() + REST_SECONDS * 1000;   // when rest should end
     timerEl.className = "resting";
     statusEl.textContent = "Resting...";
-    timerEl.textContent = format(remaining);
+    timerEl.textContent = format(REST_SECONDS);
 
-    intervalId = setInterval(() => {
-      remaining--;
+    intervalId = setInterval(tick, 250);
+  }
+
+  // Reads the real clock, so it stays correct even if the tab was frozen
+  function tick() {
+    if (endTime === null) return;
+    const remaining = Math.round((endTime - Date.now()) / 1000);
+    if (remaining <= 0) {
+      finishRest();
+    } else {
       timerEl.textContent = format(remaining);
-      if (remaining <= 0) {
-        clearInterval(intervalId);
-        intervalId = null;
-        finishRest();
-      }
-    }, 1000);
+    }
   }
 
   function finishRest() {
+    if (intervalId) clearInterval(intervalId);
+    intervalId = null;
+    endTime = null;
     timerEl.textContent = "0:00";
     timerEl.className = "done";
     statusEl.textContent = "";
@@ -177,11 +184,17 @@
   function reset() {
     if (intervalId) clearInterval(intervalId);
     intervalId = null;
+    endTime = null;
     buttons.forEach(b => b.classList.remove("done"));
     timerEl.className = "";
     timerEl.textContent = format(REST_SECONDS);
     statusEl.textContent = "";
   }
+
+  // Re-sync the moment you return to the tab
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) tick();
+  });
 
   resetBtn.addEventListener("click", reset);
 </script>
