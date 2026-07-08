@@ -18,6 +18,13 @@
     user-select: none;
   }
 
+  .top, .mid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
   /* Timer */
   #timer {
     font-size: 24vw;
@@ -30,6 +37,56 @@
   #timer.done { color: #888; }
 
   #status { font-size: 16px; color: #888; height: 20px; }
+
+  /* Mode toggle */
+  #modes {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    width: 100%;
+    max-width: 360px;
+  }
+  .mode {
+    flex: 1;
+    border: 2px solid #333;
+    border-radius: 12px;
+    background: transparent;
+    color: #888;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 6px;
+    cursor: pointer;
+  }
+  .mode.active {
+    border-color: #4ade80;
+    color: #fff;
+    background: rgba(22,128,60,.25);
+  }
+
+  /* Set-count picker (Option 2 only) */
+  #counts {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  #counts.hidden { display: none; }
+  .count {
+    width: 54px;
+    height: 46px;
+    border: 2px solid #333;
+    border-radius: 12px;
+    background: transparent;
+    color: #888;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .count.active {
+    border-color: #4ade80;
+    color: #fff;
+    background: rgba(22,128,60,.25);
+  }
 
   /* Set buttons */
   #sets {
@@ -80,41 +137,91 @@
   #reset:active { background: #1a1a1a; }
 </style>
 
-<div style="text-align:center">
-  <div id="timer">3:00</div>
+<div class="top">
+  <div id="timer">2:00</div>
   <div id="status"></div>
+  <div id="modes">
+    <button class="mode" data-mode="1">2 min · 6 sets</button>
+    <button class="mode" data-mode="2">3 min · 2-4 sets</button>
+  </div>
 </div>
 
-<div id="sets"></div>
+<div class="mid">
+  <div id="counts" class="hidden">
+    <button class="count" data-count="2">2</button>
+    <button class="count" data-count="3">3</button>
+    <button class="count" data-count="4">4</button>
+  </div>
+  <div id="sets"></div>
+</div>
 
 <button id="reset">Reset</button>
 
 <script>
-  const REST_SECONDS = 180;
+  // Two modes: Option 1 = 2 min rest / 6 sets (fixed),
+  //            Option 2 = 3 min rest / pick 2-4 sets.
+  let mode = 1;          // 1 or 2
+  let opt2Count = 4;     // remembered set count for Option 2
+  let restSeconds = 120; // current rest length in seconds
+  let setCount = 6;      // current number of set buttons
 
-  const timerEl  = document.getElementById("timer");
-  const statusEl = document.getElementById("status");
-  const setsEl   = document.getElementById("sets");
-  const resetBtn = document.getElementById("reset");
+  const timerEl   = document.getElementById("timer");
+  const statusEl  = document.getElementById("status");
+  const setsEl    = document.getElementById("sets");
+  const countsEl  = document.getElementById("counts");
+  const resetBtn  = document.getElementById("reset");
+  const modeBtns  = document.querySelectorAll(".mode");
+  const countBtns = document.querySelectorAll(".count");
 
   let intervalId = null;
   let endTime = null;
-
-  // Build the 4 set buttons
-  const buttons = [];
-  for (let i = 1; i <= 4; i++) {
-    const btn = document.createElement("button");
-    btn.className = "set";
-    btn.textContent = "Set " + i;
-    btn.addEventListener("click", () => completeSet(btn));
-    buttons.push(btn);
-    setsEl.appendChild(btn);
-  }
+  let buttons = [];
 
   function format(sec) {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return m + ":" + String(s).padStart(2, "0");
+  }
+
+  // (Re)build the set buttons for the current setCount
+  function buildSets() {
+    setsEl.innerHTML = "";
+    buttons = [];
+    for (let i = 1; i <= setCount; i++) {
+      const btn = document.createElement("button");
+      btn.className = "set";
+      btn.textContent = "Set " + i;
+      btn.addEventListener("click", () => completeSet(btn));
+      buttons.push(btn);
+      setsEl.appendChild(btn);
+    }
+  }
+
+  // Switch between Option 1 and Option 2
+  function selectMode(m) {
+    mode = m;
+    if (m === 1) {
+      restSeconds = 120;
+      setCount = 6;
+      countsEl.classList.add("hidden");
+    } else {
+      restSeconds = 180;
+      setCount = opt2Count;
+      countsEl.classList.remove("hidden");
+    }
+    modeBtns.forEach(b => b.classList.toggle("active", Number(b.dataset.mode) === m));
+    countBtns.forEach(b => b.classList.toggle("active", Number(b.dataset.count) === opt2Count));
+    buildSets();
+    reset();
+  }
+
+  // Pick how many sets in Option 2 (2, 3, or 4)
+  function selectCount(c) {
+    opt2Count = c;
+    setCount = c;
+    countBtns.forEach(b => b.classList.toggle("active", Number(b.dataset.count) === c));
+    buildSets();
+    reset();
   }
 
   function completeSet(btn) {
@@ -125,10 +232,10 @@
   function startRest() {
     if (intervalId) clearInterval(intervalId);
 
-    endTime = Date.now() + REST_SECONDS * 1000;   // when rest should end
+    endTime = Date.now() + restSeconds * 1000;   // when rest should end
     timerEl.className = "resting";
     statusEl.textContent = "Resting...";
-    timerEl.textContent = format(REST_SECONDS);
+    timerEl.textContent = format(restSeconds);
 
     intervalId = setInterval(tick, 250);
   }
@@ -159,7 +266,7 @@
     endTime = null;
     buttons.forEach(b => b.classList.remove("done"));
     timerEl.className = "";
-    timerEl.textContent = format(REST_SECONDS);
+    timerEl.textContent = format(restSeconds);
     statusEl.textContent = "";
   }
 
@@ -168,5 +275,9 @@
     if (!document.hidden) tick();
   });
 
+  modeBtns.forEach(b => b.addEventListener("click", () => selectMode(Number(b.dataset.mode))));
+  countBtns.forEach(b => b.addEventListener("click", () => selectCount(Number(b.dataset.count))));
   resetBtn.addEventListener("click", reset);
+
+  selectMode(1);   // start on Option 1
 </script>
