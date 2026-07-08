@@ -99,31 +99,6 @@
 
   let intervalId = null;
   let endTime = null;
-  let audioCtx = null;
-
-  // Must be called from inside a tap so iOS lets us make sound later
-  function primeAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
-  }
-
-  function beep(times) {
-    if (!audioCtx) return;
-    for (let i = 0; i < times; i++) {
-      const t = audioCtx.currentTime + i * 0.35;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.type = "sine";
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
-      osc.start(t);
-      osc.stop(t + 0.25);
-    }
-  }
 
   // Build the 4 set buttons
   const buttons = [];
@@ -143,7 +118,6 @@
   }
 
   function completeSet(btn) {
-    primeAudio();                  // unlock sound on this tap
     btn.classList.add("done");     // mark this set finished
     startRest();
   }
@@ -177,8 +151,6 @@
     timerEl.textContent = "0:00";
     timerEl.className = "done";
     statusEl.textContent = "";
-    beep(3);                                          // iPhone alert
-    if (navigator.vibrate) navigator.vibrate([400, 150, 400]);  // Android bonus
   }
 
   function reset() {
